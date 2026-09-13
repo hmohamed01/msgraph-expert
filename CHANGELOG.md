@@ -2,6 +2,18 @@
 
 All notable changes to the msgraph-expert skill are documented in this file.
 
+## [Unreleased]
+
+### Added
+- `.githooks/pre-commit` — repacks `msgraph-expert.skill` when anything under
+  `msgraph-expert/` is staged, keeping the committed archive in sync with its sources.
+  Packs from the git index rather than the working tree, so the archive matches the commit
+  even under partial staging (`git add -p`). Skips commits that touch no skill files, drops
+  the archive if the skill directory is removed, and degrades to a warning when `zip` is
+  unavailable. Repo-agnostic: locates the skill directory via `*/SKILL.md`
+- `.githooks/install.sh` — sets `core.hooksPath` to the tracked hooks directory, since git
+  does not clone `.git/hooks`
+
 ## [1.0.0] - 2026-09-13
 
 ### Added

@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+#
+# Repack <skill>.skill whenever anything under the skill directory is staged.
+#
+# The packaged .skill archive is a committed binary, so it goes stale the moment a
+# source file is committed without repacking. This closes that gap automatically.
+#
+# Packs from the git INDEX rather than the working tree, so the archive always
+# matches the commit being made -- including under partial staging (git add -p),
+# where the working tree holds changes the commit does not.
+#
+# Repo-agnostic: it locates the skill directory by looking for <repo>/*/SKILL.md,
+# so the same hook works unchanged in any skill repository with this layout.
+
+set -euo pipefail
+
+if ! command -v zip >/dev/null; then
+    printf 'pre-commit: zip not found, skipping .skill repack\n' >&2
+    exit 0
+fi
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+# Locate the skill directory: <repo>/<name>/SKILL.md
+skill_dir=""
+for candidate in */SKILL.md; do
+    [[ -f "$candidate" ]] || continue
+    skill_dir="${candidate%/SKILL.md}"
+    break
+done
+
+# Not a skill repo, or SKILL.md is being added for the first time in this commit.
+if [[ -z "$skill_dir" ]]; then
+    exit 0
+fi
+
+archive="$skill_dir.skill"
+
+# Nothing staged under the skill directory means nothing to repack.
+if ! git diff --cached --name-only --diff-filter=ACMRD -- "$skill_dir" | grep -q .; then
+    exit 0
+fi
+
+staging=$(mktemp -d)
+trap 'rm -rf "$staging"' EXIT
+
+# Materialise the index, not the working tree.
+git checkout-index -a --prefix="$staging/"
+
+# The whole skill directory was removed in this commit; drop the stale archive too.
+if [[ ! -d "$staging/$skill_dir" ]]; then
+    if [[ -f "$archive" ]]; then
+        git rm -q --cached --ignore-unmatch "$archive"
+        rm -f "$archive"
+        printf 'pre-commit: skill directory removed, dropped %s\n' "$archive"
+    fi
+    exit 0
+fi
+
+rm -f "$repo_root/$archive"
+(
+    cd "$staging"
+    zip -rqX "$repo_root/$archive" "$skill_dir" -x '*.DS_Store'
+)
+
+git add "$archive"
+printf 'pre-commit: repacked %s (%s)\n' "$archive" "$(du -h "$archive" | cut -f1)"

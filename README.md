@@ -141,6 +141,40 @@ msgraph-expert/
     └── migration.md            # AzureAD / MSOnline → Graph
 ```
 
+## Skill Development
+
+`msgraph-expert.skill` is a committed binary, so it goes stale the moment a source file is
+committed without repacking. A versioned pre-commit hook closes that gap. Run once per
+clone:
+
+```bash
+./.githooks/install.sh
+```
+
+That sets `core.hooksPath` to the tracked `.githooks/` directory — git does not clone
+`.git/hooks`, so a hook only survives if it is committed and pointed at explicitly.
+
+The hook repacks `msgraph-expert.skill` **only when something under `msgraph-expert/` is
+staged**, and packs from the git index rather than the working tree — so the archive always
+matches the commit, even under partial staging (`git add -p`). Commits that touch only the
+README or changelog leave the archive untouched.
+
+```
+$ git commit -m "Update permission routing"
+pre-commit: repacked msgraph-expert.skill ( 28K)
+```
+
+| Situation | Hook behaviour |
+|-----------|----------------|
+| Staged change under `msgraph-expert/` | Repacks and stages the archive |
+| Only non-skill files staged | Skips; archive untouched |
+| Skill directory deleted | Drops the stale archive from the commit |
+| `zip` unavailable | Warns and lets the commit proceed |
+
+Bypass once with `git commit --no-verify`. The hook is repo-agnostic — it locates the skill
+directory by looking for `*/SKILL.md`, so it can be copied into any skill repository with
+this layout unchanged.
+
 ## Data Sources
 
 | Source | Repository | Branch |

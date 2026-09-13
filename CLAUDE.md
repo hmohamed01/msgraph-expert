@@ -12,8 +12,11 @@ worked examples.
 ## Build Commands
 
 ```bash
-# Package the skill (creates .skill zip file)
-zip -r msgraph-expert.skill msgraph-expert -x "*.DS_Store"
+# Install the pre-commit hook (once per clone) - repacks the .skill archive
+./.githooks/install.sh
+
+# Package the skill manually (the hook does this automatically on commit)
+zip -rX msgraph-expert.skill msgraph-expert -x "*.DS_Store"
 
 # Install to Claude Code skills directory
 cp -r msgraph-expert ~/.claude/skills/
@@ -64,6 +67,16 @@ Always pipe through `jq` or project with `Select-Object` before emitting. Never 
 metadata file — WebFetch has no server-side filter and would pull the whole payload in.
 
 Use **Bash + `curl` + `jq`** for remote JSON, and **WebFetch** only for markdown.
+
+## Packaging
+
+`msgraph-expert.skill` is a committed binary that must stay in sync with `msgraph-expert/`.
+The `.githooks/pre-commit` hook repacks it automatically when skill sources are staged, and
+packs from the git index so the archive matches the commit even under partial staging.
+
+Do not repack manually in a commit the hook will also touch, and do not edit the archive
+directly — it is generated. If the hook is not installed in this clone
+(`git config core.hooksPath` is empty), run `./.githooks/install.sh`.
 
 ## Cache Policy: Explicit Refresh Only
 
